@@ -1,0 +1,23 @@
+# Credenciais e configuração local (NUNCA versionar)
+.env
+.envrc
+
+# Ambientes virtuais
+venv/
+env/
+.venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Planilhas e dados (não envie planilhas sensíveis para repositórios)
+*.csv
+*.xls
+*.xlsx
+
+# Estado e logs locais do robô
+historico_robo.txt
+.ultimos_envios_vercel.json
+*.log
