@@ -17,6 +17,10 @@ __pycache__/
 *.xls
 *.xlsx
 
+# Prints de erro (podem mostrar dados do WMS)
+erros/
+*.png
+
 # Estado e logs locais do robô
 historico_robo.txt
 .ultimos_envios_vercel.json

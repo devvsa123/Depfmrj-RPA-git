@@ -9,7 +9,9 @@ from config.settings import (
     USUARIO_WMS, 
     SENHA_WMS,
     DESTINO_WMS,
-    PASTA_RAIZ
+    PASTA_RAIZ,
+    WMS_MOSTRAR_NAVEGADOR,
+    WMS_ESPERA_TELA
 )
 from utils.envio import enviar
 from utils.logger import registrar_log
@@ -22,7 +24,7 @@ def rodar_extracao_pwa():
     registrar_log("🤖 [WMS] Iniciando o robô visual (PWA)...")
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, channel="msedge") 
+        browser = p.chromium.launch(headless=not WMS_MOSTRAR_NAVEGADOR, channel="msedge")
         context = browser.new_context()
         page = context.new_page()
 
@@ -35,6 +37,9 @@ def rodar_extracao_pwa():
             page.fill("input[name='ucLogin$txtloginsenha']", SENHA_WMS)
             page.click("input[name='ucLogin$btnLogar']")
             page.wait_for_load_state("networkidle")
+            # se o campo de senha continua na tela, o WMS recusou o login
+            if page.locator("input[name='ucLogin$txtloginsenha']").is_visible():
+                raise Exception("o WMS não aceitou o login. Confira WMS_USUARIO e WMS_SENHA no .env.")
             print("   Login realizado!")
 
             agora_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -44,7 +49,7 @@ def rodar_extracao_pwa():
             # =========================================================
             print("3. Abrindo a tela de consultas (Grid Padrão)...")
             page.goto(WMS_RELATORIO_URL)
-            page.wait_for_selector("#ImageButton4")
+            page.wait_for_selector("#ImageButton4", timeout=WMS_ESPERA_TELA * 1000)
 
             print("4. Baixando a primeira planilha (Pode demorar uns minutos)...")
             with page.expect_download(timeout=300000) as informacao_download_1:
@@ -62,7 +67,7 @@ def rodar_extracao_pwa():
             print("5. Abrindo a tela do Estoque Detalhado...")
             page.goto(WMS_ESTOQUE_DETALHADO)
             
-            page.wait_for_selector("#ImageButton4")
+            page.wait_for_selector("#ImageButton4", timeout=WMS_ESPERA_TELA * 1000)
             print("6. Baixando a segunda planilha (Estoque Detalhado)...")
             with page.expect_download(timeout=300000) as informacao_download_2:
                 page.click("#ImageButton4", timeout=300000)
@@ -87,6 +92,15 @@ def rodar_extracao_pwa():
 
         except Exception as e:
             registrar_log(f"❌ [WMS] Ocorreu um erro no processo: {e}")
+            # guarda como a tela estava, para entender o erro (a pasta erros/ não vai para o GitHub)
+            try:
+                pasta_erros = os.path.join(PASTA_RAIZ, "erros")
+                os.makedirs(pasta_erros, exist_ok=True)
+                foto = os.path.join(pasta_erros, f"wms_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                page.screenshot(path=foto, full_page=True)
+                registrar_log(f"   📷 [WMS] Tela no momento do erro: {foto} (endereço: {page.url.split('?')[0]}, título: {page.title()})")
+            except Exception:
+                pass
             return False
             
         finally:
