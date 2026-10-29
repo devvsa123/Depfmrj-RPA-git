@@ -28,6 +28,26 @@ def esperar_carregar(ie, tempo_limite=40):
             raise Exception(f"⏳ A página travou após {tempo_limite} segundos. Reiniciando...")
         time.sleep(0.5)
 
+def tem_rm_no_resultado(ie, cam, tempo_limite=10):
+    """
+    Confere se a consulta trouxe alguma RM: cada linha do resultado tem uma célula com o CAM fornecedor.
+    Sem nenhuma em `tempo_limite` segundos, a consulta veio vazia (o botão Extrair fica cinza, mas
+    sem a marcação de desativado, por isso não dá para confiar nele).
+    """
+    if not cam:
+        return True  # sem o CAM no .env não há como conferir: segue como antes
+    inicio = time.time()
+    while time.time() - inicio < tempo_limite:
+        try:
+            celulas = ie.Document.getElementsByTagName("TD")
+            for i in range(celulas.length):
+                if (celulas[i].innerText or "").strip() == cam:
+                    return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
 def rodar_extracao_singra():
     registrar_log("🤖 [SINGRA] Iniciando o robô do Singra em background...")
     
@@ -37,6 +57,7 @@ def rodar_extracao_singra():
     }
     ciclo = 1
     lista_de_planilhas = []
+    tentativas = {}  # quantas vezes cada situação falhou ao salvar o download
 
     def tem_pendencia():
         return any(len(lista) > 0 for lista in situacoes_pendentes.values())
@@ -127,6 +148,11 @@ def rodar_extracao_singra():
                         doc.getElementsByName("IWCPTBTNFILTRARFRAMECADFCONSULTARFORNECIMENTO")[0].click()
                         esperar_carregar(ie)
 
+                        if not tem_rm_no_resultado(ie, CAM_SINGRA):
+                            registrar_log(f"   ⏭️ [SINGRA] Nenhuma {tipo_rm} na situação {situacao}: pulando.")
+                            situacoes_pendentes[tipo_rm].remove(situacao)
+                            continue
+
                         sucesso_ao_clicar = False
                         try:
                             img_extrair = doc.querySelector("img[alt='Extrair']")
@@ -140,37 +166,48 @@ def rodar_extracao_singra():
                         except: pass
 
                         if not sucesso_ao_clicar:
+                            registrar_log(f"   ⚠️ [SINGRA] {tipo_rm} {situacao}: sem dados ou botão Extrair indisponível, pulando.")
                             situacoes_pendentes[tipo_rm].remove(situacao) 
                             continue 
 
                         time.sleep(1)
                         arquivos_antes = set(os.listdir(PASTA_DOWNLOADS))
-                        
+
+                        # O Singra só mostra a barra "Abrir / Salvar" depois de gerar o arquivo.
+                        # Situações com muitas RMs (como a TR) demoram mais: espera até 120 s.
                         try:
-                            ie.Left = 200 
+                            ie.Left = 200
                             ie.Top = 200
                             hwnd = ie.HWND
                             app = Application(backend="uia").connect(handle=hwnd)
                             janela_ie = app.window(handle=hwnd)
-                            
-                            time.sleep(1)
+
                             barra = janela_ie.child_window(class_name="Frame Notification Bar")
+                            barra.wait("exists visible", timeout=120, retry_interval=1)
+
                             botao_salvar = barra.child_window(title="Salvar", control_type="SplitButton")
-                            if not botao_salvar.exists():
+                            if not botao_salvar.exists(timeout=5):
                                 botao_salvar = barra.child_window(title="Salvar", control_type="Button")
-                            
-                            try: botao_salvar.invoke() 
+                            botao_salvar.wait("exists enabled", timeout=30)
+
+                            try: botao_salvar.invoke()
                             except: botao_salvar.click()
-                            
-                        except:
-                            if situacao in situacoes_pendentes[tipo_rm]:
+
+                        except Exception as e:
+                            # Não pula a situação: fecha o IE (no except de fora) e tenta de novo, até 3 vezes.
+                            # Assim a barra que ficou aberta não é salva por engano como a situação seguinte.
+                            chave = f"{tipo_rm} {situacao}"
+                            tentativas[chave] = tentativas.get(chave, 0) + 1
+                            registrar_log(f"   ⚠️ [SINGRA] {chave}: download não foi salvo (tentativa {tentativas[chave]} de 3): {e}")
+                            if tentativas[chave] >= 3:
+                                registrar_log(f"   ❌ [SINGRA] {chave}: desistindo depois de 3 tentativas; a planilha vai sem essa situação.")
                                 situacoes_pendentes[tipo_rm].remove(situacao)
-                            continue 
+                            raise Exception(f"Download de {chave} não foi salvo.")
 
                         arquivo_recente = None
                         inicio_espera = time.time()
                         
-                        while time.time() - inicio_espera < 45: 
+                        while time.time() - inicio_espera < 120: 
                             arquivos_agora = set(os.listdir(PASTA_DOWNLOADS))
                             arquivos_novos = arquivos_agora - arquivos_antes
                             arquivos_prontos = [f for f in arquivos_novos if not f.endswith(('.partial', '.crdownload', '.tmp'))]
@@ -182,7 +219,7 @@ def rodar_extracao_singra():
                             time.sleep(1)
                             
                         if not arquivo_recente:
-                            raise Exception("Download demorou mais de 45s.")
+                            raise Exception("Download demorou mais de 120s.")
 
                         try:
                             botao_fechar = barra.child_window(title="Fechar", control_type="Button")
