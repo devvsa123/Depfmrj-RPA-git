@@ -78,7 +78,3 @@ WMS_RELATORIO_URL = os.getenv("WMS_RELATORIO_URL")
 WMS_ESTOQUE_DETALHADO = os.getenv("WMS_ESTOQUE_DETALHADO")
 USUARIO_WMS = os.getenv("WMS_USUARIO")
 SENHA_WMS = os.getenv("WMS_SENHA")
-# 1 = abre o Edge na tela (para acompanhar ou investigar um erro); 0 = roda escondido
-WMS_MOSTRAR_NAVEGADOR = os.getenv("WMS_MOSTRAR_NAVEGADOR", "0") == "1"
-# Quantos segundos esperar cada tela do WMS carregar
-WMS_ESPERA_TELA = int(os.getenv("WMS_ESPERA_TELA", "120") or "120")
