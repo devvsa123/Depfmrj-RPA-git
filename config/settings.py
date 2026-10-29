@@ -18,10 +18,28 @@ DESTINO_WMS = _lista("DESTINO_WMS") or ["github"]
 DESTINO_SINGRA = _lista("DESTINO_SINGRA") or ["vercel"]
 
 # Repositório PRIVADO que guarda as planilhas (só a versão mais recente, sem histórico)
-GITHUB_STORAGE_TOKEN = os.getenv("GITHUB_STORAGE_TOKEN")
-GITHUB_STORAGE_REPO = os.getenv("GITHUB_STORAGE_REPO", "devvsa123/depfmrj-RPA-storage")
-GITHUB_STORAGE_BRANCH = os.getenv("GITHUB_STORAGE_BRANCH", "main")
+# Aceita também GITHUB_TOKEN, GITHUB_OWNER + GITHUB_REPO (ou GITHUB_REPO com dono/repositório ou o endereço completo)
+GITHUB_STORAGE_TOKEN = (os.getenv("GITHUB_STORAGE_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip() or None
+
+
+def _repo_storage():
+    bruto = os.getenv("GITHUB_STORAGE_REPO", "")
+    if not bruto:
+        dono, repo = os.getenv("GITHUB_OWNER", ""), os.getenv("GITHUB_REPO", "")
+        bruto = repo if "/" in repo else (f"{dono}/{repo}" if dono and repo else "DepfmrjAbastecimento/planilhas")
+    bruto = bruto.strip()
+    for prefixo in ("https://github.com/", "http://github.com/"):
+        if bruto.lower().startswith(prefixo):
+            bruto = bruto[len(prefixo):]
+    return bruto.removesuffix(".git").strip("/")
+
+
+GITHUB_STORAGE_REPO = _repo_storage()
+GITHUB_STORAGE_BRANCH = os.getenv("GITHUB_STORAGE_BRANCH") or os.getenv("GITHUB_BRANCH") or "main"
 GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
+# Pasta de cada robô dentro do repositório (vazio = raiz)
+GITHUB_PASTA_WMS = os.getenv("GITHUB_PASTA_WMS", "dados_wms").strip("/")
+GITHUB_PASTA_SINGRA = os.getenv("GITHUB_PASTA_SINGRA", "dados_singra").strip("/")
 
 # =========================================================
 # CONFIGURAÇÕES VERCEL E PROXY

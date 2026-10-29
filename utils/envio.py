@@ -37,16 +37,16 @@ class ErroEnvio(Exception):
     pass
 
 
-def enviar(arquivos, destinos, origem):
+def enviar(arquivos, destinos, origem, pasta_github=""):
     """
     Envia {nome_no_destino: caminho_local} para cada destino ("github" e/ou "vercel").
-    Devolve True só se todos os destinos deram certo.
+    No GitHub, os arquivos vão para `pasta_github` (vazio = raiz). Devolve True só se todos os destinos deram certo.
     """
     ok = True
     for destino in destinos:
         try:
             if destino == "github":
-                enviar_github(arquivos, origem)
+                enviar_github(arquivos, origem, pasta_github)
             elif destino == "vercel":
                 enviar_vercel(arquivos, origem)
             else:
@@ -90,7 +90,7 @@ def _estado_branch():
         return None, None, {}
     commit = r.json()["object"]["sha"]
     arvore = _github("GET", f"/git/commits/{commit}").json()["tree"]["sha"]
-    itens = _github("GET", f"/git/trees/{arvore}").json()["tree"]
+    itens = _github("GET", f"/git/trees/{arvore}?recursive=1").json()["tree"]  # inclui o que está dentro das pastas
     return commit, arvore, {i["path"]: i["sha"] for i in itens if i["type"] == "blob"}
 
 
@@ -105,14 +105,17 @@ def _ler_meta(arquivos_atuais):
         return {}
 
 
-def enviar_github(arquivos, origem):
+def enviar_github(arquivos, origem, pasta=""):
     if not GITHUB_STORAGE_TOKEN:
-        raise ErroEnvio("GITHUB_STORAGE_TOKEN não está no .env")
+        raise ErroEnvio("GITHUB_STORAGE_TOKEN (ou GITHUB_TOKEN) não está no .env")
 
-    conteudos = {}
+    # chave = caminho no repositório (ex.: dados_wms/controle-estoque.xlsx)
+    conteudos, nomes = {}, {}
     for nome, caminho in arquivos.items():
+        destino = f"{pasta}/{nome}" if pasta else nome
         with open(caminho, "rb") as f:
-            conteudos[nome] = f.read()
+            conteudos[destino] = f.read()
+        nomes[destino] = nome
 
     # Duas tentativas: se outro robô atualizar a branch no meio do envio, refaz em cima da versão dele
     for tentativa in range(2):
@@ -128,7 +131,7 @@ def enviar_github(arquivos, origem):
         for nome, conteudo in mudaram.items():
             blob = _github("POST", "/git/blobs", {"content": base64.b64encode(conteudo).decode("ascii"), "encoding": "base64"}).json()
             entradas.append({"path": nome, "mode": "100644", "type": "blob", "sha": blob["sha"]})
-            meta[nome] = {"atualizadoEm": agora, "bytes": len(conteudo), "origem": origem}
+            meta[nomes[nome]] = {"atualizadoEm": agora, "bytes": len(conteudo), "origem": origem, "caminho": nome}
         entradas.append({"path": ARQUIVO_META, "mode": "100644", "type": "blob",
                          "content": json.dumps(meta, ensure_ascii=False, indent=2, sort_keys=True)})
 
@@ -152,7 +155,7 @@ def enviar_github(arquivos, origem):
         else:
             _github("POST", "/git/refs", {"ref": f"refs/heads/{GITHUB_STORAGE_BRANCH}", "sha": commit})
         mb = sum(len(c) for c in mudaram.values()) / 1e6
-        registrar_log(f"  ✅ [{origem}] GitHub: enviado {', '.join(mudaram)} ({mb:.1f} MB).")
+        registrar_log(f"  ✅ [{origem}] GitHub ({GITHUB_STORAGE_REPO}): enviado {', '.join(mudaram)} ({mb:.1f} MB).")
         return
 
 

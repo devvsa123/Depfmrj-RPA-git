@@ -9,6 +9,7 @@ from config.settings import (
     USUARIO_WMS, 
     SENHA_WMS,
     DESTINO_WMS,
+    GITHUB_PASTA_WMS,
     PASTA_RAIZ
 )
 from utils.envio import enviar
@@ -79,7 +80,7 @@ def rodar_extracao_pwa():
             # ENVIO (GitHub privado e/ou Vercel, conforme DESTINO_WMS no .env)
             # =========================================================
             print("7. Enviando as planilhas...")
-            if not enviar({nome_arquivo_1: caminho_final_1, nome_arquivo_2: caminho_final_2}, DESTINO_WMS, "WMS"):
+            if not enviar({nome_arquivo_1: caminho_final_1, nome_arquivo_2: caminho_final_2}, DESTINO_WMS, "WMS", GITHUB_PASTA_WMS):
                 return False
 
             registrar_log("🏆 [WMS] Operação concluída! Ambas as planilhas foram enviadas e limpas da pasta.")

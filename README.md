@@ -25,7 +25,8 @@ Planilhas geradas:
 
 `DESTINO_WMS` e `DESTINO_SINGRA` no `.env` escolhem o destino de cada robô: `github`, `vercel` ou os dois (`github,vercel`).
 
-- **github**: repositório **privado** `devvsa123/depfmrj-RPA-storage`. Cada envio substitui a versão anterior sem guardar histórico,
+- **github**: repositório **privado** `DepfmrjAbastecimento/planilhas` (`GITHUB_STORAGE_REPO`), com as planilhas do WMS em
+  `dados_wms/` e a do Singra em `dados_singra/`. Cada envio substitui a versão anterior sem guardar histórico,
   para o repositório não crescer a cada ciclo. O arquivo `atualizado.json` registra a hora de cada planilha.
 - **vercel**: Vercel Blob, como antes. Cada envio gasta 1 "operação avançada" da cota mensal (2.000 no plano Hobby).
 
@@ -47,7 +48,8 @@ python main.py
 
 Crie em GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens**:
 
-- Repository access: **Only select repositories** → `depfmrj-RPA-storage`
+- Criado logado na conta **DepfmrjAbastecimento**
+- Repository access: **Only select repositories** → `planilhas`
 - Permissions → Repository permissions → **Contents: Read and write**
 
 Coloque o token em `GITHUB_STORAGE_TOKEN` no `.env` da máquina do robô.
