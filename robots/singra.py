@@ -12,7 +12,8 @@ from config.settings import (
     PASTA_DOWNLOADS, 
     PASTA_RAIZ,
     CAM_SINGRA,
-    DESTINO_SINGRA
+    DESTINO_SINGRA,
+    GITHUB_PASTA_SINGRA
 )
 from utils.envio import enviar
 from utils.logger import registrar_log
@@ -272,7 +273,7 @@ def rodar_extracao_singra():
         df_final.to_csv(caminho_final, sep=';', index=False, encoding='utf-8')
         
         registrar_log(f"☁️ [SINGRA] Enviando {nome_arquivo_blob}...")
-        ok = enviar({nome_arquivo_blob: caminho_final}, DESTINO_SINGRA, "SINGRA")
+        ok = enviar({nome_arquivo_blob: caminho_final}, DESTINO_SINGRA, "SINGRA", GITHUB_PASTA_SINGRA)
         if ok:
             os.remove(caminho_final)
         os.system("taskkill /F /IM iexplore.exe >nul 2>&1")
