@@ -117,8 +117,9 @@ def enviar_github(arquivos, origem, pasta=""):
             conteudos[destino] = f.read()
         nomes[destino] = nome
 
-    # Duas tentativas: se outro robô atualizar a branch no meio do envio, refaz em cima da versão dele
-    for tentativa in range(2):
+    # Se outro robô ou o Controle de Estoque (que grava os JSONs em dados_controle/) atualizar a branch no meio
+    # do envio, refaz em cima da versão nova, para não apagar o que foi gravado.
+    for tentativa in range(3):
         commit_atual, arvore_atual, atuais = _estado_branch()
         mudaram = {n: c for n, c in conteudos.items() if atuais.get(n) != _sha_git(c)}
         if not mudaram:
@@ -146,9 +147,11 @@ def enviar_github(arquivos, origem, pasta=""):
 
         # confere se ninguém atualizou a branch enquanto este envio era montado
         commit_agora, _, _ = _estado_branch()
-        if commit_agora != commit_atual and tentativa == 0:
-            registrar_log(f"  🔁 [{origem}] GitHub: a branch mudou durante o envio; refazendo em cima da versão nova.")
-            continue
+        if commit_agora != commit_atual:
+            if tentativa < 2:
+                registrar_log(f"  🔁 [{origem}] GitHub: a branch mudou durante o envio; refazendo em cima da versão nova.")
+                continue
+            raise ErroEnvio("a branch mudou durante o envio 3 vezes seguidas; fica para o próximo ciclo")
 
         if commit_atual:
             _github("PATCH", f"/git/refs/heads/{GITHUB_STORAGE_BRANCH}", {"sha": commit, "force": True})
