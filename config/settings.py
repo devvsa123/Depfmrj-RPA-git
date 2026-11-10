@@ -40,6 +40,10 @@ GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 # Pasta de cada robô dentro do repositório (vazio = raiz)
 GITHUB_PASTA_WMS = os.getenv("GITHUB_PASTA_WMS", "dados_wms").strip("/")
 GITHUB_PASTA_SINGRA = os.getenv("GITHUB_PASTA_SINGRA", "dados_singra").strip("/")
+# Pasta do "par" WMS x Singra: a cada ciclo do Singra ela recebe o CSV do Singra junto com o WMS que estava no
+# GitHub quando o Singra COMEÇOU a extrair, para as telas que cruzam os dois sistemas (Interface SINGRA x WMS)
+# compararem dados do mesmo momento. Vazio = não grava o par.
+GITHUB_PASTA_INTERFACE = os.getenv("GITHUB_PASTA_INTERFACE", "dados_interface").strip("/")
 
 # =========================================================
 # CONFIGURAÇÕES VERCEL E PROXY

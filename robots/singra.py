@@ -15,7 +15,7 @@ from config.settings import (
     DESTINO_SINGRA,
     GITHUB_PASTA_SINGRA
 )
-from utils.envio import enviar
+from utils.envio import capturar_wms_para_par, enviar
 from utils.logger import registrar_log
 
 # Desativa alertas de conexões inseguras (verify=False)
@@ -51,7 +51,17 @@ def tem_rm_no_resultado(ie, cam, tempo_limite=10):
 
 def rodar_extracao_singra():
     registrar_log("🤖 [SINGRA] Iniciando o robô do Singra em background...")
-    
+
+    # Par WMS x Singra: guarda agora qual WMS está no GitHub (só os SHAs, nada é baixado). A extração leva ~12 min e
+    # o WMS é atualizado a cada 5; no fim, o CSV do Singra é gravado junto com ESTE WMS, não com o de 12 min depois.
+    par_wms = None
+    if "github" in DESTINO_SINGRA:
+        try:
+            par_wms = capturar_wms_para_par()
+        except Exception as e:
+            registrar_log(f"  ⚠️ [SINGRA] Não foi possível guardar o WMS do início do ciclo ({e}); "
+                          "o par da interface não será atualizado neste ciclo.")
+
     situacoes_pendentes = {
         "RMT": ["EA", "ES", "EX", "TR"],
         "RMC": ["EA", "ES", "EX", "TR"]
@@ -273,7 +283,7 @@ def rodar_extracao_singra():
         df_final.to_csv(caminho_final, sep=';', index=False, encoding='utf-8')
         
         registrar_log(f"☁️ [SINGRA] Enviando {nome_arquivo_blob}...")
-        ok = enviar({nome_arquivo_blob: caminho_final}, DESTINO_SINGRA, "SINGRA", GITHUB_PASTA_SINGRA)
+        ok = enviar({nome_arquivo_blob: caminho_final}, DESTINO_SINGRA, "SINGRA", GITHUB_PASTA_SINGRA, par=par_wms)
         if ok:
             os.remove(caminho_final)
         os.system("taskkill /F /IM iexplore.exe >nul 2>&1")

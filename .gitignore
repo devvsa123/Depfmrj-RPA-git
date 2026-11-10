@@ -21,3 +21,4 @@ __pycache__/
 historico_robo.txt
 .ultimos_envios_vercel.json
 *.log
+.envio_github.lock
